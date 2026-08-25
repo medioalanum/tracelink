@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -26,11 +27,22 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def validate_async_postgresql_url(cls, value: str) -> str:
-        """Require SQLAlchemy's asyncpg PostgreSQL dialect."""
-        if not value.startswith("postgresql+asyncpg://"):
-            message = "DATABASE_URL must use the postgresql+asyncpg dialect"
+        """Normalize standard provider URLs to SQLAlchemy's asyncpg dialect."""
+        url = make_url(value)
+        if url.drivername not in {"postgres", "postgresql", "postgresql+asyncpg"}:
+            message = "DATABASE_URL must be a PostgreSQL URL"
             raise ValueError(message)
-        return value
+
+        query = dict(url.query)
+        ssl_mode = query.pop("sslmode", None)
+        query.pop("channel_binding", None)
+        if ssl_mode is not None:
+            query.setdefault("ssl", ssl_mode)
+
+        return url.set(
+            drivername="postgresql+asyncpg",
+            query=query,
+        ).render_as_string(hide_password=False)
 
 
 @lru_cache

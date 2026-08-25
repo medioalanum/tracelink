@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: tracelink
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: uv sync --frozen --no-dev
+    startCommand: >-
+      uv run alembic upgrade head &&
+      uv run uvicorn tracelink.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /ready
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_ECHO
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: UV_VERSION
+        value: 0.12.5
