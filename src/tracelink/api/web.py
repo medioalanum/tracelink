@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 router = APIRouter(include_in_schema=False)
@@ -14,3 +14,9 @@ templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates"
 async def home(request: Request) -> HTMLResponse:
     """Render the URL shortener browser interface."""
     return templates.TemplateResponse(request=request, name="index.html")
+
+
+@router.get("/favicon.ico", status_code=204)
+async def favicon() -> Response:
+    """Avoid treating the browser favicon request as a short-link slug."""
+    return Response(status_code=204)
