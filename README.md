@@ -1,281 +1,183 @@
-# tracelink
+# TraceLink
 
-tracelink is an asynchronous URL-shortening API with built-in click analytics. It creates compact, shareable links, redirects visitors to their original destinations, and records privacy-conscious events that can be queried as aggregate statistics.
+TraceLink is an asynchronous URL shortener built with FastAPI and PostgreSQL. It creates
+compact links, redirects visitors to their destinations, and exposes privacy-conscious click
+analytics through both a REST API and a minimal web interface.
 
-The project is designed as a controlled, portfolio-grade MVP with clear architectural boundaries, reproducible dependency management, automated database migrations, and a production-oriented quality workflow.
+**Live application:** <https://tracelink-xmd8.onrender.com/>
 
-## Live API
+[Swagger UI](https://tracelink-xmd8.onrender.com/docs) ·
+[Health check](https://tracelink-xmd8.onrender.com/health) ·
+[Readiness check](https://tracelink-xmd8.onrender.com/ready)
 
-- Web interface: <https://tracelink-xmd8.onrender.com/>
+> The application runs on a free Render instance and may take up to a minute to respond after
+> a period of inactivity.
 
-- API: <https://tracelink-xmd8.onrender.com>
-- Swagger UI: <https://tracelink-xmd8.onrender.com/docs>
-- Health: <https://tracelink-xmd8.onrender.com/health>
-- Readiness: <https://tracelink-xmd8.onrender.com/ready>
+## Features
 
-The API runs on Render and uses a Neon PostgreSQL database in AWS Frankfurt. The free Render instance can spin down during inactivity, so the first request after an idle period may take longer.
+- Generate collision-resistant short links or provide a custom slug.
+- Set an optional expiration date for a link.
+- Redirect short links with an HTTP `307 Temporary Redirect`.
+- Record a click timestamp, referrer, and user agent for each successful redirect.
+- Retrieve total clicks, first and last click times, and daily click counts.
+- Create links and inspect analytics from a responsive browser interface.
+- Check application and database availability through dedicated health endpoints.
+
+## API
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/` | Open the web interface |
+| `POST` | `/api/v1/links` | Create a short link |
+| `GET` | `/{slug}` | Redirect to the destination and record a click |
+| `GET` | `/api/v1/links/{slug}/stats` | Retrieve aggregate click analytics |
+| `GET` | `/health` | Check application health |
+| `GET` | `/ready` | Check database readiness |
+
+Example request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/links \
+  -H "Content-Type: application/json" \
+  -d '{
+    "original_url": "https://example.com/articles/async-python",
+    "custom_slug": "async-python"
+  }'
+```
+
+`custom_slug` and `expires_at` are optional. Custom slugs must contain 3–32 letters, numbers,
+hyphens, or underscores. Expiration timestamps must be timezone-aware and in the future.
 
 ## Tech Stack
 
-| Technology | Role |
+| Technology | Purpose |
 | --- | --- |
-| Python 3.14 | Application language and async runtime |
-| [uv](https://docs.astral.sh/uv/) | Python version, virtual environment, dependency, and lockfile management |
-| [FastAPI](https://fastapi.tiangolo.com/) | ASGI web framework and OpenAPI documentation |
-| [Pydantic v2](https://docs.pydantic.dev/) | Request, response, and settings validation |
-| [SQLAlchemy 2.0](https://docs.sqlalchemy.org/en/20/) | Async ORM and database access layer |
-| [PostgreSQL](https://www.postgresql.org/) | Primary relational database |
-| [asyncpg](https://magicstack.github.io/asyncpg/current/) | Async PostgreSQL driver |
-| [Alembic](https://alembic.sqlalchemy.org/) | Database schema migrations |
-| [pytest](https://docs.pytest.org/) | Unit, integration, and API testing |
-| [Ruff](https://docs.astral.sh/ruff/) | Linting, import sorting, and formatting |
-| [ty](https://docs.astral.sh/ty/) | Static type checking |
-| Docker Compose | Reproducible local PostgreSQL service |
+| Python 3.14 | Application runtime |
+| FastAPI | ASGI framework and OpenAPI documentation |
+| Jinja2 | Server-rendered web interface |
+| Pydantic v2 | API and settings validation |
+| SQLAlchemy 2.0 | Asynchronous ORM and persistence layer |
+| PostgreSQL + asyncpg | Relational database and async driver |
+| Alembic | Database migrations |
+| uv | Python, environment, dependency, and lockfile management |
+| pytest + Testcontainers | Unit and PostgreSQL integration testing |
+| Ruff | Linting and formatting |
+| ty | Static type checking |
 
 ## Architecture
 
-tracelink follows a Router-Service-Repository architecture:
+The backend uses a Router–Service–Repository structure to keep HTTP concerns, business rules,
+and persistence logic separate:
 
 ```text
-HTTP request
-    |
-    v
-FastAPI router        HTTP concerns and schema validation
-    |
-    v
-Service               Business rules and transaction orchestration
-    |
-    v
-Repository            Persistence queries
-    |
-    v
-SQLAlchemy AsyncSession
-    |
-    v
-PostgreSQL
+Request → FastAPI router → Service → Repository → SQLAlchemy AsyncSession → PostgreSQL
 ```
 
-- **Routers** translate HTTP requests into application operations and return validated responses.
-- **Services** implement link creation, expiration, redirect, and analytics rules.
-- **Repositories** isolate SQLAlchemy queries and persistence behavior.
-- **Schemas** define the public API contract independently from ORM models.
-- **Models** represent the relational database structure.
-- **Core modules** contain settings, logging, and shared exception behavior.
-
-Each request receives its own `AsyncSession`. Sessions are never shared between concurrent tasks.
-
-## Project Structure
+Each request receives its own asynchronous database session. Pydantic schemas define the public
+API contract independently of the SQLAlchemy models.
 
 ```text
 tracelink/
-|-- src/
-|   `-- tracelink/
-|       |-- __init__.py
-|       |-- main.py
-|       |-- api/
-|       |   |-- __init__.py
-|       |   |-- dependencies.py
-|       |   `-- v1/
-|       |       |-- __init__.py
-|       |       |-- router.py
-|       |       `-- endpoints/
-|       |           |-- __init__.py
-|       |           |-- analytics.py
-|       |           |-- health.py
-|       |           |-- links.py
-|       |           `-- redirects.py
-|       |-- core/
-|       |   |-- __init__.py
-|       |   |-- config.py
-|       |   |-- exceptions.py
-|       |   `-- logging.py
-|       |-- db/
-|       |   |-- __init__.py
-|       |   |-- base.py
-|       |   |-- session.py
-|       |   `-- models/
-|       |       |-- __init__.py
-|       |       |-- click_event.py
-|       |       `-- link.py
-|       |-- repositories/
-|       |   |-- __init__.py
-|       |   |-- click_event.py
-|       |   `-- link.py
-|       |-- schemas/
-|       |   |-- __init__.py
-|       |   |-- analytics.py
-|       |   |-- common.py
-|       |   `-- link.py
-|       |-- services/
-|       |   |-- __init__.py
-|       |   |-- analytics.py
-|       |   |-- link.py
-|       |   `-- redirect.py
-|       `-- utils/
-|           |-- __init__.py
-|           `-- short_code.py
-|-- migrations/
-|   |-- versions/
-|   |-- env.py
-|   `-- script.py.mako
-|-- tests/
-|   |-- conftest.py
-|   |-- unit/
-|   |   |-- services/
-|   |   `-- utils/
-|   `-- integration/
-|       |-- api/
-|       `-- repositories/
-|-- .env.example
-|-- .gitignore
-|-- .python-version
-|-- alembic.ini
-|-- compose.yaml
-|-- Dockerfile
-|-- Makefile
-|-- pyproject.toml
-|-- README.md
-`-- uv.lock
+├── migrations/
+│   ├── versions/
+│   └── env.py
+├── src/tracelink/
+│   ├── api/
+│   │   ├── v1/endpoints/
+│   │   ├── dependencies.py
+│   │   └── web.py
+│   ├── core/
+│   ├── db/models/
+│   ├── repositories/
+│   ├── schemas/
+│   ├── services/
+│   ├── templates/
+│   ├── utils/
+│   └── main.py
+├── tests/
+│   ├── integration/
+│   ├── unit/
+│   └── conftest.py
+├── .env.example
+├── alembic.ini
+├── pyproject.toml
+├── render.yaml
+└── uv.lock
 ```
 
-## MVP Features
-
-### API routes
-
-- [x] `POST /api/v1/links` creates a short link.
-- [ ] `GET /api/v1/links/{link_id}` returns link metadata.
-- [ ] `PATCH /api/v1/links/{link_id}` updates expiration or active state.
-- [x] `GET /api/v1/links/{slug}/stats` returns aggregate click analytics.
-- [x] `GET /{short_code}` records a click and returns a `307 Temporary Redirect`.
-- [x] `GET /health` reports process health.
-- [x] `GET /ready` verifies database readiness.
-
-### Business rules
-
-- [x] Accept only valid `http` and `https` destination URLs.
-- [x] Generate URL-safe, collision-resistant short codes.
-- [x] Allow optional custom aliases while rejecting reserved routes.
-- [x] Enforce short-code uniqueness in PostgreSQL.
-- [x] Support optional expiration timestamps.
-- [ ] Disable links without deleting their historical analytics.
-- [x] Record timestamp, referrer, user agent, and an optional privacy-preserving IP hash.
-- [ ] Return analytics grouped by day, referrer, and user agent.
-- [x] Use timezone-aware UTC timestamps throughout the application.
-- [x] Treat click events as the analytics source of truth.
-
-## Getting Started
+## Local Development
 
 ### Prerequisites
 
-Install the following tools before continuing:
-
-- Python 3.14
-- `uv`
-- Docker Desktop or another Docker-compatible runtime with Compose support
+- [uv](https://docs.astral.sh/uv/)
+- Docker Desktop or another Docker-compatible runtime
 - Git
 
-Verify the local toolchain:
+The required Python version is installed automatically by `uv`.
 
-```bash
-python3 --version
-uv --version
-docker --version
-docker compose version
-git --version
-```
-
-### 1. Clone and enter the repository
+### 1. Clone the repository and install dependencies
 
 ```bash
 git clone git@github.com:medioalanum/tracelink.git
 cd tracelink
-```
-
-If you are working from an existing local checkout, enter it directly:
-
-```bash
-cd /Users/alanviana/Projects/tracelink
-```
-
-### 2. Install the project environment
-
-The committed `.python-version`, `pyproject.toml`, and `uv.lock` define the expected environment.
-
-```bash
 uv python install
-uv sync
+uv sync --frozen
 ```
 
-`uv sync` creates the local `.venv` when necessary and installs both runtime and default development dependencies.
-
-### 3. Configure environment variables
-
-Create a local environment file from the committed template:
+### 2. Configure the environment
 
 ```bash
 cp .env.example .env
 ```
 
-The expected local database URL is:
+The default `.env.example` expects PostgreSQL on `localhost:5432`. Never commit `.env` or any
+production credentials.
 
-```dotenv
-DATABASE_URL=postgresql+asyncpg://tracelink:tracelink@localhost:5432/tracelink
-```
-
-Do not commit `.env` or any production credentials.
-
-### 4. Start PostgreSQL
+### 3. Start PostgreSQL
 
 ```bash
-docker compose up -d postgres
-docker compose ps
+docker run --name tracelink-postgres \
+  -e POSTGRES_USER=tracelink \
+  -e POSTGRES_PASSWORD=tracelink \
+  -e POSTGRES_DB=tracelink \
+  -p 5432:5432 \
+  -d postgres:17-alpine
 ```
 
-Wait until the PostgreSQL service is healthy before applying migrations.
+For an existing stopped container, run:
 
-### 5. Apply database migrations
+```bash
+docker start tracelink-postgres
+```
+
+### 4. Apply migrations and run the application
 
 ```bash
 uv run alembic upgrade head
+uv run uvicorn tracelink.main:app --reload
 ```
 
-Create a migration after intentionally changing the SQLAlchemy models:
+Open <http://127.0.0.1:8000/> for the web interface or
+<http://127.0.0.1:8000/docs> for the interactive API documentation.
+
+When you finish, stop the local database without deleting its data:
+
+```bash
+docker stop tracelink-postgres
+```
+
+## Database Migrations
+
+After changing an ORM model, generate and review a migration before applying it:
 
 ```bash
 uv run alembic revision --autogenerate -m "describe the schema change"
 uv run alembic upgrade head
 ```
 
-Always review autogenerated migrations before applying or committing them.
+Do not treat autogenerated migrations as final without inspecting them.
 
-### 6. Run the API
-
-```bash
-uv run uvicorn tracelink.main:app --reload
-```
-
-The local application will be available at:
-
-- API: <http://127.0.0.1:8000>
-- Swagger UI: <http://127.0.0.1:8000/docs>
-- ReDoc: <http://127.0.0.1:8000/redoc>
-- OpenAPI schema: <http://127.0.0.1:8000/openapi.json>
-
-### 7. Stop local infrastructure
-
-```bash
-docker compose down
-```
-
-To also remove the local PostgreSQL volume and all local database data:
-
-```bash
-docker compose down --volumes
-```
-
-The volume-removal command is destructive and should only be used when the local database can be safely recreated.
-
-## Testing
+## Testing and Quality
 
 Run the complete test suite:
 
@@ -283,77 +185,51 @@ Run the complete test suite:
 uv run pytest
 ```
 
-Run tests with coverage:
+Integration tests start an isolated PostgreSQL 17 container through Testcontainers. They are
+skipped when Docker is unavailable.
 
-```bash
-uv run pytest --cov=tracelink --cov-report=term-missing
-```
-
-Run only unit or integration tests:
-
-```bash
-uv run pytest tests/unit
-uv run pytest tests/integration
-```
-
-Integration tests should run against PostgreSQL rather than SQLite so that constraints, transactions, and async driver behavior match the production database.
-
-## Code Quality
-
-Check lint rules:
+Run the full local quality gate:
 
 ```bash
 uv run ruff check .
+uv run ruff format --check .
+uv run ty check
+uv run pytest --cov=tracelink --cov-report=term-missing
 ```
 
-Apply safe automatic lint fixes:
-
-```bash
-uv run ruff check . --fix
-```
-
-Format the codebase:
+To apply formatting and safe lint fixes:
 
 ```bash
 uv run ruff format .
+uv run ruff check . --fix
 ```
 
-Verify formatting without changing files:
+## Deployment
 
-```bash
-uv run ruff format --check .
-```
+Production uses a Neon PostgreSQL database and a Render web service configured by
+[`render.yaml`](render.yaml). Render installs locked production dependencies, applies pending
+Alembic migrations, and then starts Uvicorn. Pushes to `main` trigger automatic deployments.
 
-Run static type checking:
+The `DATABASE_URL` is configured as a Render secret and must never be committed. The application
+accepts standard Neon PostgreSQL URLs and normalizes them for the asyncpg driver.
 
-```bash
-uv run ty check
-```
+## Privacy and Limitations
 
-Run the complete local quality gate before opening a pull request:
+TraceLink stores the referrer and user-agent headers supplied during a successful redirect. The
+database schema includes an optional field for a future privacy-preserving IP hash, but the
+application does not currently collect or store visitor IP addresses.
 
-```bash
-uv run ruff check .
-uv run ruff format --check .
-uv run ty check
-uv run pytest --cov=tracelink --cov-report=term-missing
-```
-
-## Data and Privacy
-
-tracelink should not store raw IP addresses. If approximate unique-visitor reporting is enabled, addresses should be transformed using a keyed, rotating hash before persistence. Production deployments should also define retention limits for click events and document their privacy behavior.
-
-## API Documentation
-
-FastAPI generates an OpenAPI document from the application's routes and Pydantic schemas. When the API is running locally, use `/docs` for interactive exploration and `/openapi.json` for the machine-readable contract.
+This MVP has no authentication or ownership model. Anyone who knows a slug can retrieve its
+aggregate analytics, so it should not be used for sensitive links in its current form.
 
 ## Roadmap
 
-- [ ] Add user accounts, authentication, and per-owner link management.
-- [ ] Add Redis-backed caching and distributed rate limiting.
-- [ ] Add custom domains and verified domain ownership.
-- [ ] Add geographic enrichment, bot filtering, and an analytics dashboard with configurable retention.
+- Add authenticated workspaces and link ownership.
+- Add link management, including activation, deactivation, and deletion.
+- Add rate limiting and abuse prevention.
+- Add custom domains and richer, privacy-aware analytics.
 
 ## License
 
-No license has been selected yet. Until a license is added, the repository remains under the default protections of copyright law.
+No license has been selected. Unless a license is added, the source remains protected by default
+copyright law and is not licensed for reuse.
