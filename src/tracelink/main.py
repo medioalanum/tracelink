@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from tracelink.api.v1.endpoints.health import router as health_router
 from tracelink.api.v1.endpoints.redirects import router as redirects_router
 from tracelink.api.v1.router import router as api_v1_router
+from tracelink.api.web import router as web_router
 from tracelink.core.config import get_settings
 from tracelink.core.exceptions import (
     LinkNotFoundError,
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
 
     application.include_router(health_router)
     application.include_router(api_v1_router, prefix="/api/v1")
+    application.include_router(web_router)
     application.include_router(redirects_router)
     return application
 
