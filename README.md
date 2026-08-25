@@ -4,6 +4,15 @@ tracelink is an asynchronous URL-shortening API with built-in click analytics. I
 
 The project is designed as a controlled, portfolio-grade MVP with clear architectural boundaries, reproducible dependency management, automated database migrations, and a production-oriented quality workflow.
 
+## Live API
+
+- API: <https://tracelink-xmd8.onrender.com>
+- Swagger UI: <https://tracelink-xmd8.onrender.com/docs>
+- Health: <https://tracelink-xmd8.onrender.com/health>
+- Readiness: <https://tracelink-xmd8.onrender.com/ready>
+
+The API runs on Render and uses a Neon PostgreSQL database in AWS Frankfurt. The free Render instance can spin down during inactivity, so the first request after an idle period may take longer.
+
 ## Tech Stack
 
 | Technology | Role |
@@ -131,26 +140,26 @@ tracelink/
 
 ### API routes
 
-- [ ] `POST /api/v1/links` creates a short link.
+- [x] `POST /api/v1/links` creates a short link.
 - [ ] `GET /api/v1/links/{link_id}` returns link metadata.
 - [ ] `PATCH /api/v1/links/{link_id}` updates expiration or active state.
-- [ ] `GET /api/v1/links/{link_id}/analytics` returns aggregate click analytics.
-- [ ] `GET /{short_code}` records a click and returns a `307 Temporary Redirect`.
-- [ ] `GET /health` reports process health.
-- [ ] `GET /ready` verifies database readiness.
+- [x] `GET /api/v1/links/{slug}/stats` returns aggregate click analytics.
+- [x] `GET /{short_code}` records a click and returns a `307 Temporary Redirect`.
+- [x] `GET /health` reports process health.
+- [x] `GET /ready` verifies database readiness.
 
 ### Business rules
 
-- [ ] Accept only valid `http` and `https` destination URLs.
-- [ ] Generate URL-safe, collision-resistant short codes.
-- [ ] Allow optional custom aliases while rejecting reserved routes.
-- [ ] Enforce short-code uniqueness in PostgreSQL.
-- [ ] Support optional expiration timestamps.
+- [x] Accept only valid `http` and `https` destination URLs.
+- [x] Generate URL-safe, collision-resistant short codes.
+- [x] Allow optional custom aliases while rejecting reserved routes.
+- [x] Enforce short-code uniqueness in PostgreSQL.
+- [x] Support optional expiration timestamps.
 - [ ] Disable links without deleting their historical analytics.
-- [ ] Record timestamp, referrer, user agent, and an optional privacy-preserving IP hash.
+- [x] Record timestamp, referrer, user agent, and an optional privacy-preserving IP hash.
 - [ ] Return analytics grouped by day, referrer, and user agent.
-- [ ] Use timezone-aware UTC timestamps throughout the application.
-- [ ] Treat click events as the analytics source of truth.
+- [x] Use timezone-aware UTC timestamps throughout the application.
+- [x] Treat click events as the analytics source of truth.
 
 ## Getting Started
 
