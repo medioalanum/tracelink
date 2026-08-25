@@ -1,9 +1,11 @@
 """Shared pytest fixtures for PostgreSQL integration tests."""
 
 from collections.abc import AsyncIterator, Iterator
+from shutil import which
 
 import pytest
 import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
@@ -24,6 +26,9 @@ DATABASE_TABLES = (ClickEvent.__tablename__, Link.__tablename__)
 @pytest.fixture(scope="session")
 def postgres_url() -> Iterator[str]:
     """Start an isolated PostgreSQL container and return an async connection URL."""
+    if which("docker") is None:
+        pytest.skip("Docker is required for PostgreSQL integration tests")
+
     with PostgresContainer(POSTGRES_IMAGE) as postgres:
         sync_url = make_url(postgres.get_connection_url())
         async_url = sync_url.set(drivername="postgresql+asyncpg")
@@ -45,7 +50,7 @@ async def test_engine(postgres_url: str) -> AsyncIterator[AsyncEngine]:
     await engine.dispose()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def db_session(test_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
     """Yield an isolated session and clear persisted rows after each test."""
     session_factory = async_sessionmaker(
@@ -62,3 +67,27 @@ async def db_session(test_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
     table_names = ", ".join(DATABASE_TABLES)
     async with test_engine.begin() as connection:
         await connection.execute(text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE"))
+
+
+@pytest_asyncio.fixture(loop_scope="session")
+async def api_client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+    """Return an HTTP client whose application uses the isolated test session."""
+    from tracelink.db.session import get_db_session
+    from tracelink.main import create_app
+
+    application = create_app()
+
+    async def override_db_session() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    application.dependency_overrides[get_db_session] = override_db_session
+    transport = ASGITransport(app=application)
+
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        yield client
+
+    application.dependency_overrides.clear()
