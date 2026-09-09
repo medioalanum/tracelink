@@ -10,8 +10,7 @@ analytics through both a REST API and a minimal web interface.
 [Health check](https://tracelink-xmd8.onrender.com/health) ·
 [Readiness check](https://tracelink-xmd8.onrender.com/ready)
 
-> The application runs on a free Render instance and may take up to a minute to respond after
-> a period of inactivity.
+> The demo may take up to a minute to respond after a period of inactivity.
 
 ## Features
 
