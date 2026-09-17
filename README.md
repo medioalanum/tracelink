@@ -1,4 +1,14 @@
-# TraceLink
+<p align="center">
+  <img src="docs/images/tracelink-logo.svg" alt="TraceLink" width="560">
+</p>
+
+<p align="center"><em>Short links with privacy-conscious click analytics.</em></p>
+
+<p align="center">
+  <a href="https://tracelink-xmd8.onrender.com/"><img src="https://img.shields.io/badge/demo-live-2bc7e7?style=flat-square" alt="Live application"></a>
+  <a href="https://tracelink-xmd8.onrender.com/docs"><img src="https://img.shields.io/badge/API-Swagger_UI-0b1826?style=flat-square" alt="Swagger UI"></a>
+  <a href="https://tracelink-xmd8.onrender.com/health"><img src="https://img.shields.io/badge/health-endpoint-8de9f8?style=flat-square" alt="Health endpoint"></a>
+</p>
 
 TraceLink is an asynchronous URL shortener built with FastAPI and PostgreSQL. It creates
 compact links, redirects visitors to their destinations, and exposes privacy-conscious click
