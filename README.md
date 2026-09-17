@@ -1,4 +1,5 @@
 <p align="center">
+  <a href="https://github.com/medioalanum/tracelink/actions/workflows/ci.yml"><img src="https://github.com/medioalanum/tracelink/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="docs/images/tracelink-logo.svg" alt="TraceLink" width="560">
 </p>
 
