@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/tracelink-logo.svg" alt="TraceLink" width="560">
+  <img src="docs/images/tracelink-logo.png" alt="TraceLink" width="560">
 </p>
 
 <p align="center"><em>Short links with privacy-conscious click analytics.</em></p>
